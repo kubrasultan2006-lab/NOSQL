@@ -1,0 +1,31 @@
+[   0.78s] Members: [('chapter-08-mongo1', 27017), ('chapter-08-mongo2', 27018), ('chapter-08-mongo3', 27019)]  network: chapter-08_default
+[   0.80s] Healthy replica set. Primary: chapter-08-mongo1 (port 27017)
+[   0.84s] OBSERVER: chapter-08-mongo1 (port 27017) -> PRIMARY
+[   0.90s] OBSERVER: chapter-08-mongo2 (port 27018) -> SECONDARY
+[   0.94s] OBSERVER: chapter-08-mongo3 (port 27019) -> PRIMARY
+[   3.42s] PARTITION: disconnected chapter-08-mongo2 (af5fc9bed15a, port 27018) from chapter-08_default
+[   5.17s] OBSERVER: chapter-08-mongo2 (port 27018) -> UNREACHABLE
+[   6.42s] Phase 1: one secondary partitioned; majority (2 of 3) is still available
+[   6.46s] INSERT [phase1] w:1 #1: SUCCESS in 30 ms
+[   6.47s] INSERT [phase1] w:1 #2: SUCCESS in 11 ms
+[   6.50s] INSERT [phase1] w:1 #3: SUCCESS in 23 ms
+[   6.54s] INSERT [phase1] w:majority #1: SUCCESS in 37 ms
+[   6.56s] INSERT [phase1] w:majority #2: SUCCESS in 13 ms
+[   6.59s] INSERT [phase1] w:majority #3: SUCCESS in 32 ms
+[   7.16s] PARTITION: disconnected chapter-08-mongo3 (8c5364db6e09, port 27019) from chapter-08_default
+[   7.16s] Phase 2: both secondaries partitioned; the primary has no majority
+[   7.18s] INSERT [phase2] w:majority #1: SUCCESS in 11 ms
+[   7.18s] Waiting for the primary to step down ...
+[   8.26s] OBSERVER: chapter-08-mongo3 (port 27019) -> UNREACHABLE
+[  47.20s] Primary did not step down within 40 s (check electionTimeoutMillis / checkQuorum)
+[  47.38s] HEALED: reconnected chapter-08-mongo2 (af5fc9bed15a, port 27018) to chapter-08_default
+[  47.65s] HEALED: reconnected chapter-08-mongo3 (8c5364db6e09, port 27019) to chapter-08_default
+[  47.65s] Waiting for an election and for all members to rejoin ...
+[  47.66s] ELECTED: chapter-08-mongo1 (port 27017) is primary 0.0 s after healing
+[  47.66s] The former primary regained its role.
+[  47.79s] All members are reachable again
+[  49.17s] OBSERVER: chapter-08-mongo2 (port 27018) -> SECONDARY
+[  49.22s] OBSERVER: chapter-08-mongo3 (port 27019) -> SECONDARY
+[  52.85s] Document count on chapter-08-mongo1 (port 27017): 7
+[  52.89s] Document count on chapter-08-mongo2 (port 27018): 21
+[  52.91s] Document count on chapter-08-mongo3 (port 27019): 21

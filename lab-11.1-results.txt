@@ -1,0 +1,68 @@
+Simulating 100,000 orders, 5,000 customers, 4 shards, ~64 chunks (seed 42)
+First half of the orders = historical data (sets chunk boundaries); second half = live traffic.
+
+==============================================================================
+1. CARDINALITY
+==============================================================================
+shard key            distinct values  top value share  chunks
+order_id                     100,000           0.00%       64
+customer_id                    4,931           2.65%       62
+order_date                       365           0.27%       64
+hashed customer_id             4,931           2.65%       64
+(top value share: one value larger than a chunk cannot be split, which makes a jumbo chunk)
+
+==============================================================================
+2. DISTRIBUTION  (share of documents per shard; ideal = 25% each)
+==============================================================================
+LIVE WRITES (new inserts)      shard0   shard1   shard2   shard3  imbalance
+order_id                          0%       0%       0%     100%       4.00x
+customer_id                       6%       8%      12%      73%       2.93x
+order_date                        0%       0%       0%     100%       4.00x
+hashed customer_id               24%      25%      27%      24%       1.08x
+
+ALL DATA                       shard0   shard1   shard2   shard3  imbalance
+order_id                         12%      12%      12%      62%       2.50x
+customer_id                      17%      16%      19%      48%       1.93x
+order_date                       12%      13%      12%      63%       2.51x
+hashed customer_id               22%      25%      28%      25%       1.12x
+(imbalance = busiest shard / ideal share; 1.00x is perfect)
+
+==============================================================================
+3. QUERY TARGETING  (average shards touched per query, out of 4)
+==============================================================================
+query (traffic share)                                          order_id        customer_id         order_date hashed customer_id
+Get one order by order_id (30%)                                    1.00               4.00               4.00               4.00
+List a customer's orders (35%)                                     4.00               1.00               4.00               1.00
+Customer's orders in the last 30 days (15%)                        4.00               1.00               1.19               1.00
+Orders placed in a 7-day range (reports) (10%)                     4.00               4.00               1.05               4.00
+Orders by status (no key field) (10%)                              4.00               4.00               4.00               4.00
+Single-shard share of traffic                                       30%                50%                22%                50%
+Avg shards touched / total shards                                  0.77               0.62               0.82               0.62
+
+==============================================================================
+4. DECISION MATRIX  (scores 1-5, 5 is best; weights in the header)
+==============================================================================
+criterion (weight)                       order_id        customer_id         order_date hashed customer_id
+Cardinality (20%)                               5                  3                  2                  3
+Write distribution (30%)                        1                  2                  1                  5
+Data distribution (15%)                         2                  3                  2                  5
+Query targeting (35%)                           2                  3                  2                  3
+----------------------------------------------------------------------------------------------------------
+WEIGHTED TOTAL (max 5.00)                    2.30               2.70               1.70               3.90
+
+==============================================================================
+5. RECOMMENDATION: hashed customer_id   (score 3.90 / 5.00)
+==============================================================================
+- Cardinality: 4,931 distinct values; the most frequent value holds 2.65% of the orders.
+- Writes: new inserts spread to 1.08x the ideal load on the busiest shard (shares: 24%, 25%, 27%, 24%).
+- Data: 1.12x imbalance across shards for all stored orders.
+- Queries: 50% of the workload is routed to a single shard; the average query touches 2.50 of 4 shards.
+- Trade-off: these queries become scatter-gather: Get one order by order_id (4.0 shards); Orders placed in a 7-day range (reports) (4.0 shards); Orders by status (no key field) (4.0 shards).
+- Trade-off: a hashed key gives up efficient range queries on customer_id, which this workload does not need.
+- Ranking of the others: customer_id (2.70), order_id (2.30), order_date (1.70).
+
+  order_id: weakest on 'Write distribution' (score 1).
+  customer_id: weakest on 'Write distribution' (score 2).
+  order_date: weakest on 'Write distribution' (score 1).
+
+Saved lab-11.1-shard-distribution.png

@@ -1,0 +1,9 @@
+threads,approach,reserved,conflict,retries,seconds,reservations_per_s
+1,transactional,160,0,0,2.165,73.9
+1,findAndModify,160,0,0,0.765,209.1
+4,transactional,158,2,102,2.206,71.6
+4,findAndModify,160,0,0,0.299,535.7
+8,transactional,152,8,211,1.935,78.5
+8,findAndModify,160,0,0,0.214,746.1
+16,transactional,135,25,347,1.787,75.5
+16,findAndModify,160,0,0,0.218,734.2

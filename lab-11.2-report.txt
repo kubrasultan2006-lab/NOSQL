@@ -1,0 +1,63 @@
+Connected to mongos, shards: ['shard1rs', 'shard2rs']
+Temporary chunk size: 1 MB
+Sharded chapter-11.hotspot_data on {ts: 1} and chapter-11.even_data on {user_id: 'hashed'}
+Inserted 10,000 documents into hotspot_data in 0.4 s
+Inserted 10,000 documents into even_data in 24.5 s
+
+--- Right after the inserts ---
+hotspot_data:
+  shard        documents  % of docs  size (MB)  chunks
+  shard1rs        10,000     73.1%       5.69       1
+  shard2rs         3,682     26.9%       2.10       2
+even_data:
+  shard        documents  % of docs  size (MB)  chunks
+  shard1rs         5,012     50.1%       2.90       1
+  shard2rs         4,988     49.9%       2.88       1
+
+Waiting 60 s for the balancer to move chunks ...
+
+--- After 60 s ---
+hotspot_data:
+  shard        documents  % of docs  size (MB)  chunks
+  shard1rs        10,000     73.1%       5.69       1
+  shard2rs         3,682     26.9%       2.10       2
+even_data:
+  shard        documents  % of docs  size (MB)  chunks
+  shard1rs         5,012     50.1%       2.90       1
+  shard2rs         4,988     49.9%       2.88       1
+
+--- Range queries and explain() ---
+  collection    query                           stage         shards touched
+  hotspot_data  ts range, full year             SHARD_MERGE   2 ['shard2rs', 'shard1rs']
+  hotspot_data  ts range, last 5 days only      SINGLE_SHARD  1 ['shard1rs']
+  even_data     user_id range (hashed key)      SHARD_MERGE   2 ['shard1rs', 'shard2rs']
+  even_data     user_id equality (hashed key)   SINGLE_SHARD  1 ['shard1rs']
+
+======================================================================
+REPORT
+======================================================================
+Distribution: hotspot_data (ts: 1) puts 73% of its documents on its busiest shard; even_data (user_id: hashed) puts 50% on its busiest shard (ideal is 50%).
+Queries:
+  - hotspot_data, ts range, full year: SHARD_MERGE, touches 2 of 2 shards
+  - hotspot_data, ts range, last 5 days only: SINGLE_SHARD, targeted
+  - even_data, user_id range (hashed key): SHARD_MERGE, touches 2 of 2 shards
+  - even_data, user_id equality (hashed key): SINGLE_SHARD, targeted
+
+Why monotonically increasing keys cause hotspots:
+  Every new document has a key larger than all existing ones, so every insert falls into
+  the chunk with the highest range (maxKey). That chunk lives on one shard, so one shard
+  takes all the writes while the others sit idle. Splitting that chunk does not help,
+  because the next insert again lands in the newest chunk. The balancer can only move
+  OLD chunks to other shards afterwards, so the write throughput of the cluster stays
+  limited to a single shard.
+A hashed key spreads consecutive values across the whole hash space, so inserts are
+  distributed evenly, but a range query on that field must ask every shard.
+
+When a ranged key can still be appropriate:
+  - Write volume is low enough for one shard (the hotspot does not matter).
+  - Range queries on the key dominate the workload (time-window reports, scans).
+  - The key is not monotonic: a compound key such as {tenant_id: 1, ts: 1} spreads writes
+    across tenants and still supports a time range per tenant.
+  - Zones or archiving rely on data ranges, for example the newest data on fast hardware.
+
+Chunk size setting removed (back to the default).
